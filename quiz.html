@@ -110,7 +110,7 @@
             text-align: left;
         }
         
-        .option-btn:hover {
+        .option-btn:hover:not(:disabled) {
             border-color: #667eea;
             background: #f0f4ff;
             transform: translateY(-2px);
@@ -119,33 +119,28 @@
         .option-btn.correct {
             background: #d4edda;
             border-color: #28a745;
+            animation: correctPulse 0.5s;
         }
         
         .option-btn.wrong {
             background: #f8d7da;
             border-color: #dc3545;
+            animation: wrongShake 0.5s;
         }
         
         .option-btn:disabled {
             cursor: not-allowed;
         }
         
-        .next-btn {
-            width: 100%;
-            padding: 15px;
-            font-size: 1.2em;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: none;
+        @keyframes correctPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
         
-        .next-btn:hover {
-            background: #5568d3;
-            transform: translateY(-2px);
+        @keyframes wrongShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
         }
         
         .result-box {
@@ -171,7 +166,7 @@
             margin-bottom: 30px;
         }
         
-        .restart-btn, .review-btn {
+        .restart-btn {
             padding: 15px 40px;
             font-size: 1.2em;
             background: #667eea;
@@ -182,44 +177,9 @@
             transition: all 0.3s;
         }
         
-        .review-btn {
-            background: #dc3545;
-        }
-        
         .restart-btn:hover {
             background: #5568d3;
-        }
-        
-        .review-btn:hover {
-            background: #c82333;
-        }
-        
-        .wrong-answers {
-            margin-top: 30px;
-            text-align: left;
-        }
-        
-        .wrong-answers h3 {
-            color: #dc3545;
-            margin-bottom: 15px;
-        }
-        
-        .wrong-item {
-            background: #f8f9fa;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 8px;
-            border-left: 4px solid #dc3545;
-        }
-        
-        .wrong-item .jp {
-            font-size: 1.5em;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        
-        .wrong-item .en {
-            color: #28a745;
+            transform: translateY(-2px);
         }
         
         .completion-message {
@@ -232,6 +192,19 @@
         
         .completion-message h3 {
             color: #28a745;
+            margin-bottom: 10px;
+        }
+        
+        .review-notice {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .review-notice h3 {
+            color: #856404;
             margin-bottom: 10px;
         }
     </style>
@@ -266,8 +239,6 @@
             </div>
             
             <div class="options" id="options"></div>
-            
-            <button class="next-btn" id="next-btn">Weiter</button>
         </div>
         
         <div class="result-box" id="result-box">
@@ -280,10 +251,7 @@
             
             <div class="button-group" id="button-group">
                 <button class="restart-btn" onclick="startNewRound()">Nächste Runde</button>
-                <button class="review-btn" id="review-btn" onclick="startReview()">Falsche wiederholen</button>
             </div>
-            
-            <div class="wrong-answers" id="wrong-answers"></div>
         </div>
     </div>
 
@@ -522,16 +490,17 @@
             isReviewMode = reviewMode;
             currentQuestionIndex = 0;
             score = 0;
-            wrongAnswers = [];
             
             if (reviewMode) {
                 // Review-Modus: Nur falsche Antworten
                 currentQuestions = [...wrongAnswers];
+                wrongAnswers = []; // Reset für neue falsche Antworten im Review
                 document.getElementById('quiz-mode').textContent = 'Wiederholung';
                 document.getElementById('quiz-mode').style.background = '#dc3545';
                 document.getElementById('quiz-mode').style.color = 'white';
             } else {
                 // Normaler Modus: 20 ungelernte Wörter
+                wrongAnswers = []; // Reset
                 const count = Math.min(20, unlearnedVocab.length);
                 currentQuestions = unlearnedVocab.slice(0, count);
                 document.getElementById('quiz-mode').textContent = 'Hauptquiz';
@@ -566,8 +535,6 @@
                 btn.onclick = () => checkAnswer(option, question.en, btn);
                 optionsContainer.appendChild(btn);
             });
-            
-            document.getElementById('next-btn').style.display = 'none';
         }
 
         // Antwortmöglichkeiten generieren
@@ -634,31 +601,50 @@
                 });
             }
             
-            document.getElementById('next-btn').style.display = 'block';
+            // Automatisch zur nächsten Frage nach 1 Sekunde
+            setTimeout(() => {
+                currentQuestionIndex++;
+                
+                if (currentQuestionIndex < currentQuestions.length) {
+                    showQuestion();
+                } else {
+                    // Prüfen ob Review-Modus gestartet werden soll
+                    if (!isReviewMode && wrongAnswers.length > 0) {
+                        // Automatisch Review-Modus starten
+                        setTimeout(() => {
+                            initQuiz(true);
+                        }, 1000);
+                    } else {
+                        // Ergebnisse anzeigen
+                        showResults();
+                    }
+                }
+            }, 1000);
         }
-
-        // Nächste Frage
-        document.getElementById('next-btn').addEventListener('click', () => {
-            currentQuestionIndex++;
-            
-            if (currentQuestionIndex < currentQuestions.length) {
-                showQuestion();
-            } else {
-                showResults();
-            }
-        });
 
         // Ergebnisse anzeigen
         function showResults() {
             document.getElementById('quiz-box').style.display = 'none';
             document.getElementById('result-box').style.display = 'block';
             
+            // Gesamtscore berechnen (Hauptquiz + Review)
+            const totalQuestions = currentQuestions.length;
             document.getElementById('score').textContent = score;
-            document.getElementById('total-questions').textContent = currentQuestions.length;
+            document.getElementById('total-questions').textContent = totalQuestions;
             
             // Completion Status
             const completionDiv = document.getElementById('completion-status');
-            if (unlearnedVocab.length === 0 && !isReviewMode) {
+            
+            if (wrongAnswers.length === 0 && isReviewMode) {
+                // Review perfekt abgeschlossen
+                completionDiv.innerHTML = `
+                    <div class="completion-message">
+                        <h3>🎊 Perfekt!</h3>
+                        <p>Du hast alle Wiederholungen gemeistert!</p>
+                    </div>
+                `;
+            } else if (unlearnedVocab.length === 0 && !isReviewMode) {
+                // Alle Vokabeln durchgearbeitet
                 completionDiv.innerHTML = `
                     <div class="completion-message">
                         <h3>🎊 Glückwunsch!</h3>
@@ -669,60 +655,25 @@
                 completionDiv.innerHTML = '';
             }
             
-            // Buttons anpassen
-            const reviewBtn = document.getElementById('review-btn');
-            if (wrongAnswers.length > 0 && !isReviewMode) {
-                reviewBtn.style.display = 'inline-block';
-                reviewBtn.textContent = `Falsche wiederholen (${wrongAnswers.length})`;
-            } else {
-                reviewBtn.style.display = 'none';
-            }
-            
             // Button-Text anpassen
             const restartBtn = document.querySelector('.restart-btn');
-            if (isReviewMode) {
-                restartBtn.textContent = 'Zurück zum Hauptquiz';
-            } else if (unlearnedVocab.length === 0) {
+            if (unlearnedVocab.length === 0) {
                 restartBtn.textContent = 'Alles nochmal von vorne';
             } else {
                 restartBtn.textContent = 'Nächste Runde';
-            }
-            
-            // Falsche Antworten anzeigen
-            const wrongContainer = document.getElementById('wrong-answers');
-            if (wrongAnswers.length > 0) {
-                wrongContainer.innerHTML = '<h3>Falsche Antworten:</h3>';
-                
-                wrongAnswers.forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'wrong-item';
-                    div.innerHTML = `
-                        <div class="jp">${item.jp}</div>
-                        <div class="en">✓ ${item.en}</div>
-                    `;
-                    wrongContainer.appendChild(div);
-                });
-            } else {
-                wrongContainer.innerHTML = '';
             }
         }
 
         // Neue Runde starten
         function startNewRound() {
-            if (isReviewMode || unlearnedVocab.length === 0) {
-                // Progress zurücksetzen wenn Review-Modus oder alles gelernt
+            if (unlearnedVocab.length === 0) {
+                // Progress zurücksetzen wenn alles gelernt
                 unlearnedVocab = [...allVocab];
                 learnedVocab = [];
                 saveProgress();
                 updateStats();
             }
-            wrongAnswers = [];
             initQuiz(false);
-        }
-
-        // Review-Modus starten
-        function startReview() {
-            initQuiz(true);
         }
 
         // Beim Laden initialisieren
