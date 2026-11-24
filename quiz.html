@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Japanisch Vokabeltrainer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 700px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+        
+        .progress {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+        }
+        
+        .question-box {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .japanese-word {
+            font-size: 3em;
+            color: #333;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .options {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .option-btn {
+            padding: 20px;
+            font-size: 1.1em;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: left;
+        }
+        
+        .option-btn:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+            transform: translateY(-2px);
+        }
+        
+        .option-btn.correct {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+        
+        .option-btn.wrong {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+        
+        .option-btn:disabled {
+            cursor: not-allowed;
+        }
+        
+        .next-btn {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2em;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: none;
+        }
+        
+        .next-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        
+        .result-box {
+            text-align: center;
+            display: none;
+        }
+        
+        .result-box h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        
+        .score {
+            font-size: 2em;
+            color: #28a745;
+            margin-bottom: 30px;
+        }
+        
+        .restart-btn {
+            padding: 15px 40px;
+            font-size: 1.2em;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .restart-btn:hover {
+            background: #5568d3;
+        }
+        
+        .wrong-answers {
+            margin-top: 30px;
+            text-align: left;
+        }
+        
+        .wrong-answers h3 {
+            color: #dc3545;
+            margin-bottom: 15px;
+        }
+        
+        .wrong-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .wrong-item .jp {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .wrong-item .en {
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🇯🇵 Japanisch Vokabeltrainer</h1>
+        
+        <div id="quiz-box">
+            <div class="progress">
+                Frage <span id="current">1</span> von <span id="total">20</span>
+            </div>
+            
+            <div class="question-box">
+                <div class="japanese-word" id="japanese-word"></div>
+            </div>
+            
+            <div class="options" id="options"></div>
+            
+            <button class="next-btn" id="next-btn">Weiter</button>
+        </div>
+        
+        <div class="result-box" id="result-box">
+            <h2>Quiz beendet! 🎉</h2>
+            <div class="score">
+                <span id="score">0</span> / <span id="total-questions">20</span> richtig
+            </div>
+            <button class="restart-btn" onclick="location.reload()">Neues Quiz starten</button>
+            
+            <div class="wrong-answers" id="wrong-answers"></div>
+        </div>
+    </div>
+
+    <script>
+        // Alle Vokabeln
+        const allVocab = [
+            { jp: "秋/あき", en: "autumn" },
+            { jp: "要る/いる", en: "to need" },
+            { jp: "上着/うわぎ", en: "jacket" },
+            { jp: "起きる/おきる", en: "to wake up" },
+            { jp: "置く/おく", en: "to put" },
+            { jp: "押す/おす", en: "to push" },
+            { jp: "降りる/おりる", en: "to get off" },
+            { jp: "角/かど", en: "corner" },
+            { jp: "家内/かない", en: "wife" },
+            { jp: "紙/かみ", en: "paper" },
+            { jp: "火曜日/かようび", en: "Tuesday" },
+            { jp: "借りる/かりる", en: "to borrow" },
+            { jp: "軽い/かるい", en: "light" },
+            { jp: "教室/きょうしつ", en: "classroom" },
+            { jp: "去年/きょねん", en: "last year" },
+            { jp: "金曜日/きんようび", en: "Friday" },
+            { jp: "暗い/くらい", en: "dark" },
+            { jp: "黒い/くろい", en: "black" },
+            { jp: "今朝/けさ", en: "this morning" },
+            { jp: "消す/けす", en: "to turn off" },
+            { jp: "月曜日/げつようび", en: "Monday" },
+            { jp: "此方/こちら", en: "this way" },
+            { jp: "雑誌/ざっし", en: "magazine" },
+            { jp: "自動車/じどうしゃ", en: "car" },
+            { jp: "食堂/しょくどう", en: "dining room" },
+            { jp: "水曜日/すいようび", en: "Wednesday" },
+            { jp: "全部/ぜんぶ", en: "all" },
+            { jp: "其方/そちら", en: "that way" },
+            { jp: "大切/たいせつ", en: "important" },
+            { jp: "出す/だす", en: "to take out" },
+            { jp: "使う/つかう", en: "to use" },
+            { jp: "着く/つく", en: "to arrive" },
+            { jp: "何方/どちら", en: "which" },
+            { jp: "何方/どなた", en: "who" },
+            { jp: "土曜日/どようび", en: "Saturday" },
+            { jp: "何れ/どれ", en: "which one" },
+            { jp: "習う/ならう", en: "to learn" },
+            { jp: "日曜日/にちようび", en: "Sunday" },
+            { jp: "脱ぐ/ぬぐ", en: "to take off" },
+            { jp: "低い/ひくい", en: "low" },
+            { jp: "病気/びょうき", en: "illness" },
+            { jp: "封筒/ふうとう", en: "envelope" },
+            { jp: "冬/ふゆ", en: "winter" },
+            { jp: "欲しい/ほしい", en: "to want" },
+            { jp: "待つ/まつ", en: "to wait" },
+            { jp: "木曜日/もくようび", en: "Thursday" },
+            { jp: "郵便局/ゆうびんきょく", en: "post office" },
+            { jp: "横/よこ", en: "side" },
+            { jp: "呼ぶ/よぶ", en: "to call" },
+            { jp: "留学生/りゅうがくせい", en: "exchange student" },
+            { jp: "両親/りょうしん", en: "parents" },
+            { jp: "渡る/わたる", en: "to cross" },
+            { jp: "悪い/わるい", en: "bad" },
+            { jp: "集める/あつめる", en: "to collect" },
+            { jp: "意見/いけん", en: "opinion" },
+            { jp: "急ぐ/いそぐ", en: "to hurry" },
+            { jp: "一度/いちど", en: "once" },
+            { jp: "田舎/いなか", en: "countryside" },
+            { jp: "受付/うけつけ", en: "reception" },
+            { jp: "動く/うごく", en: "to move" },
+            { jp: "遅れる/おくれる", en: "to be late" },
+            { jp: "送る/おくる", en: "to send" },
+            { jp: "思い出す/おもいだす", en: "to remember" },
+            { jp: "思う/おもう", en: "to think" },
+            { jp: "変える/かえる", en: "to change" },
+            { jp: "勝つ/かつ", en: "to win" },
+            { jp: "季節/きせつ", en: "season" },
+            { jp: "屹度/きっと", en: "surely" },
+            { jp: "急行/きゅうこう", en: "express train" },
+            { jp: "空港/くうこう", en: "airport" },
+            { jp: "高校/こうこう", en: "high school" },
+            { jp: "交通/こうつう", en: "traffic" },
+            { jp: "故障/こしょう", en: "breakdown" },
+            { jp: "怖い/こわい", en: "scary" },
+            { jp: "今度/こんど", en: "this time" },
+            { jp: "最近/さいきん", en: "recently" },
+            { jp: "触る/さわる", en: "to touch" },
+            { jp: "字/じ", en: "character" },
+            { jp: "試合/しあい", en: "match" },
+            { jp: "下着/したぎ", en: "underwear" },
+            { jp: "事務所/じむしょ", en: "office" },
+            { jp: "社長/しゃちょう", en: "company president" },
+            { jp: "住所/じゅうしょ", en: "address" },
+            { jp: "準備/じゅんび", en: "preparation" },
+            { jp: "神社/じんじゃ", en: "shrine" },
+            { jp: "親切/しんせつ", en: "kind" },
+            { jp: "捨てる/すてる", en: "to throw away" },
+            { jp: "生活/せいかつ", en: "life" },
+            { jp: "大体/だいたい", en: "generally" },
+            { jp: "棚/たな", en: "shelf" },
+            { jp: "駐車場/ちゅうしゃじょう", en: "parking lot" },
+            { jp: "都合/つごう", en: "circumstances" },
+            { jp: "特に/とくに", en: "especially" },
+            { jp: "何方/どっち", en: "which" },
+            { jp: "泊まる/とまる", en: "to stay overnight" },
+            { jp: "直す/なおす", en: "to fix" },
+            { jp: "中々/なかなか", en: "quite" },
+            { jp: "無くす/なくす", en: "to lose" },
+            { jp: "熱/ねつ", en: "fever" },
+            { jp: "乗り換える/のりかえる", en: "to transfer" },
+            { jp: "払う/はらう", en: "to pay" },
+            { jp: "昼休み/ひるやすみ", en: "lunch break" },
+            { jp: "拾う/ひろう", en: "to pick up" },
+            { jp: "普通/ふつう", en: "normal" },
+            { jp: "不便/ふべん", en: "inconvenient" },
+            { jp: "放送/ほうそう", en: "broadcast" },
+            { jp: "負ける/まける", en: "to lose" },
+            { jp: "間に合う/まにあう", en: "to be in time" },
+            { jp: "迎える/むかえる", en: "to welcome" },
+            { jp: "無理/むり", en: "impossible" },
+            { jp: "役に立つ/やくにたつ", en: "to be useful" },
+            { jp: "用事/ようじ", en: "errand" },
+            { jp: "弱い/よわい", en: "weak" },
+            { jp: "浴びる/あびる", en: "to bathe" },
+            { jp: "余り/あまり", en: "not very" },
+            { jp: "幾つ/いくつ", en: "how many" },
+            { jp: "何時でも/いつでも", en: "anytime" },
+            { jp: "何時も/いつも", en: "always" },
+            { jp: "嘘/うそ", en: "lie" },
+            { jp: "宇宙/うちゅう", en: "universe" },
+            { jp: "換える/かえる", en: "to exchange" },
+            { jp: "確認/かくにん", en: "confirmation" },
+            { jp: "片付く/かたづく", en: "to be put in order" },
+            { jp: "被る/かぶる", en: "to wear (on head)" },
+            { jp: "教師/きょうし", en: "teacher" },
+            { jp: "禁煙/きんえん", en: "no smoking" },
+            { jp: "県/けん", en: "prefecture" },
+            { jp: "現金/げんきん", en: "cash" },
+            { jp: "講演/こうえん", en: "lecture" },
+            { jp: "事/こと", en: "thing" },
+            { jp: "捜す/さがす", en: "to search" },
+            { jp: "主人/しゅじん", en: "husband" },
+            { jp: "信号/しんごう", en: "traffic light" },
+            { jp: "随分/ずいぶん", en: "very" },
+            { jp: "少ない/すくない", en: "few" },
+            { jp: "製品/せいひん", en: "product" },
+            { jp: "是非/ぜひ", en: "by all means" },
+            { jp: "全然/ぜんぜん", en: "not at all" },
+            { jp: "経つ/たつ", en: "to pass (time)" },
+            { jp: "多分/たぶん", en: "probably" },
+            { jp: "地下/ちか", en: "underground" },
+            { jp: "地球/ちきゅう", en: "earth" },
+            { jp: "調子/ちょうし", en: "condition" },
+            { jp: "直接/ちょくせつ", en: "direct" },
+            { jp: "点ける/つける", en: "to turn on" },
+            { jp: "手帳/てちょう", en: "notebook" },
+            { jp: "電池/でんち", en: "battery" },
+            { jp: "独身/どくしん", en: "single" },
+            { jp: "何でも/なんでも", en: "anything" },
+            { jp: "喉/のど", en: "throat" },
+            { jp: "履く/はく", en: "to wear (lower body)" },
+            { jp: "瓶/びん", en: "bottle" },
+            { jp: "物価/ぶっか", en: "prices" },
+            { jp: "故郷/ふるさと", en: "hometown" },
+            { jp: "平日/へいじつ", en: "weekday" },
+            { jp: "本当/ほんとう", en: "true" },
+            { jp: "先ず/まず", en: "first" },
+            { jp: "又/また", en: "again" },
+            { jp: "未だ/まだ", en: "still" },
+            { jp: "回す/まわす", en: "to turn" },
+            { jp: "名刺/めいし", en: "business card" },
+            { jp: "貰う/もらう", en: "to receive" },
+            { jp: "家賃/やちん", en: "rent" },
+            { jp: "寮/りょう", en: "dormitory" },
+            { jp: "時刻表/じこくひょう", en: "timetable" },
+            { jp: "定食/ていしょく", en: "set meal" },
+            { jp: "転勤/てんきん", en: "job transfer" },
+            { jp: "天才/てんさい", en: "genius" },
+            { jp: "良い/よい", en: "good" },
+            { jp: "課長/かちょう", en: "section chief" },
+            { jp: "後ろ/うしろ", en: "behind" },
+            { jp: "無駄/むだ", en: "waste" },
+            { jp: "お湯/おゆ", en: "hot water" },
+            { jp: "押入れ/おしいれ", en: "closet" },
+            { jp: "お菓子/おかし", en: "sweets" },
+            { jp: "市役所/しやくしょ", en: "city hall" },
+            { jp: "自動販売機/じどうはんばいき", en: "vending machine" },
+            { jp: "釣り/つり", en: "fishing" },
+            { jp: "背/せ", en: "back" },
+            { jp: "台/だい", en: "stand" },
+            { jp: "お釣り/おつり", en: "change (money)" },
+            { jp: "段々/だんだん", en: "gradually" }
+        ];
+
+        let currentQuestions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let wrongAnswers = [];
+        let answered = false;
+
+        // Quiz initialisieren
+        function initQuiz() {
+            // 20 zufällige Vokabeln auswählen
+            currentQuestions = getRandomQuestions(20);
+            currentQuestionIndex = 0;
+            score = 0;
+            wrongAnswers = [];
+            showQuestion();
+        }
+
+        // Zufällige Fragen auswählen
+        function getRandomQuestions(count) {
+            const shuffled = [...allVocab].sort(() => Math.random() - 0.5);
+            return shuffled.slice(0, count);
+        }
+
+        // Frage anzeigen
+        function showQuestion() {
+            answered = false;
+            const question = currentQuestions[currentQuestionIndex];
+            
+            document.getElementById('current').textContent = currentQuestionIndex + 1;
+            document.getElementById('total').textContent = currentQuestions.length;
+            document.getElementById('japanese-word').textContent = question.jp;
+            
+            // 4 Antwortmöglichkeiten generieren
+            const options = generateOptions(question);
+            const optionsContainer = document.getElementById('options');
+            optionsContainer.innerHTML = '';
+            
+            options.forEach((option, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.textContent = option;
+                btn.onclick = () => checkAnswer(option, question.en, btn);
+                optionsContainer.appendChild(btn);
+            });
+            
+            document.getElementById('next-btn').style.display = 'none';
+        }
+
+        // Antwortmöglichkeiten generieren
+        function generateOptions(correctQuestion) {
+            const options = [correctQuestion.en];
+            const otherVocab = allVocab.filter(v => v.en !== correctQuestion.en);
+            
+            while (options.length < 4) {
+                const random = otherVocab[Math.floor(Math.random() * otherVocab.length)];
+                if (!options.includes(random.en)) {
+                    options.push(random.en);
+                }
+            }
+            
+            return options.sort(() => Math.random() - 0.5);
+        }
+
+        // Antwort überprüfen
+        function checkAnswer(selected, correct, btn) {
+            if (answered) return;
+            answered = true;
+            
+            const allBtns = document.querySelectorAll('.option-btn');
+            allBtns.forEach(b => b.disabled = true);
+            
+            if (selected === correct) {
+                btn.classList.add('correct');
+                score++;
+            } else {
+                btn.classList.add('wrong');
+                wrongAnswers.push(currentQuestions[currentQuestionIndex]);
+                
+                // Richtige Antwort hervorheben
+                allBtns.forEach(b => {
+                    if (b.textContent === correct) {
+                        b.classList.add('correct');
+                    }
+                });
+            }
+            
+            document.getElementById('next-btn').style.display = 'block';
+        }
+
+        // Nächste Frage
+        document.getElementById('next-btn').addEventListener('click', () => {
+            currentQuestionIndex++;
+            
+            if (currentQuestionIndex < currentQuestions.length) {
+                showQuestion();
+            } else {
+                showResults();
+            }
+        });
+
+        // Ergebnisse anzeigen
+        function showResults() {
+            document.getElementById('quiz-box').style.display = 'none';
+            document.getElementById('result-box').style.display = 'block';
+            
+            document.getElementById('score').textContent = score;
+            document.getElementById('total-questions').textContent = currentQuestions.length;
+            
+            // Falsche Antworten anzeigen
+            if (wrongAnswers.length > 0) {
+                const wrongContainer = document.getElementById('wrong-answers');
+                wrongContainer.innerHTML = '<h3>Falsche Antworten zum Wiederholen:</h3>';
+                
+                wrongAnswers.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'wrong-item';
+                    div.innerHTML = `
+                        <div class="jp">${item.jp}</div>
+                        <div class="en">✓ ${item.en}</div>
+                    `;
+                    wrongContainer.appendChild(div);
+                });
+            }
+        }
+
+        // Quiz starten
+        initQuiz();
+    </script>
+</body>
+</html>
