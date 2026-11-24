@@ -44,6 +44,30 @@
             font-size: 1.1em;
         }
         
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
         .question-box {
             background: #f8f9fa;
             padding: 30px;
@@ -56,6 +80,17 @@
             font-size: 3em;
             color: #333;
             margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .quiz-mode {
+            display: inline-block;
+            padding: 5px 15px;
+            background: #ffc107;
+            color: #333;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-bottom: 15px;
             font-weight: bold;
         }
         
@@ -129,7 +164,14 @@
             margin-bottom: 30px;
         }
         
-        .restart-btn {
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        
+        .restart-btn, .review-btn {
             padding: 15px 40px;
             font-size: 1.2em;
             background: #667eea;
@@ -140,8 +182,16 @@
             transition: all 0.3s;
         }
         
+        .review-btn {
+            background: #dc3545;
+        }
+        
         .restart-btn:hover {
             background: #5568d3;
+        }
+        
+        .review-btn:hover {
+            background: #c82333;
         }
         
         .wrong-answers {
@@ -171,6 +221,19 @@
         .wrong-item .en {
             color: #28a745;
         }
+        
+        .completion-message {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .completion-message h3 {
+            color: #28a745;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
@@ -178,11 +241,27 @@
         <h1>🇯🇵 Japanisch Vokabeltrainer</h1>
         
         <div id="quiz-box">
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-label">Gelernt</div>
+                    <div class="stat-value" id="learned-count">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Verbleibend</div>
+                    <div class="stat-value" id="remaining-count">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Gesamt</div>
+                    <div class="stat-value" id="total-vocab">0</div>
+                </div>
+            </div>
+            
             <div class="progress">
                 Frage <span id="current">1</span> von <span id="total">20</span>
             </div>
             
             <div class="question-box">
+                <div class="quiz-mode" id="quiz-mode">Hauptquiz</div>
                 <div class="japanese-word" id="japanese-word"></div>
             </div>
             
@@ -196,7 +275,13 @@
             <div class="score">
                 <span id="score">0</span> / <span id="total-questions">20</span> richtig
             </div>
-            <button class="restart-btn" onclick="location.reload()">Neues Quiz starten</button>
+            
+            <div id="completion-status"></div>
+            
+            <div class="button-group" id="button-group">
+                <button class="restart-btn" onclick="startNewRound()">Nächste Runde</button>
+                <button class="review-btn" id="review-btn" onclick="startReview()">Falsche wiederholen</button>
+            </div>
             
             <div class="wrong-answers" id="wrong-answers"></div>
         </div>
@@ -389,26 +474,75 @@
             { jp: "段々/だんだん", en: "gradually" }
         ];
 
+        // LocalStorage Keys
+        const STORAGE_KEY = 'japaneseQuizProgress';
+        
+        // Globale Variablen
+        let unlearnedVocab = [];
+        let learnedVocab = [];
         let currentQuestions = [];
         let currentQuestionIndex = 0;
         let score = 0;
         let wrongAnswers = [];
         let answered = false;
+        let isReviewMode = false;
+
+        // Progress laden oder initialisieren
+        function loadProgress() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const data = JSON.parse(saved);
+                learnedVocab = data.learned || [];
+                unlearnedVocab = allVocab.filter(v => 
+                    !learnedVocab.some(l => l.jp === v.jp)
+                );
+            } else {
+                unlearnedVocab = [...allVocab];
+                learnedVocab = [];
+            }
+            updateStats();
+        }
+
+        // Progress speichern
+        function saveProgress() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                learned: learnedVocab
+            }));
+        }
+
+        // Statistiken aktualisieren
+        function updateStats() {
+            document.getElementById('learned-count').textContent = learnedVocab.length;
+            document.getElementById('remaining-count').textContent = unlearnedVocab.length;
+            document.getElementById('total-vocab').textContent = allVocab.length;
+        }
 
         // Quiz initialisieren
-        function initQuiz() {
-            // 20 zufällige Vokabeln auswählen
-            currentQuestions = getRandomQuestions(20);
+        function initQuiz(reviewMode = false) {
+            isReviewMode = reviewMode;
             currentQuestionIndex = 0;
             score = 0;
             wrongAnswers = [];
+            
+            if (reviewMode) {
+                // Review-Modus: Nur falsche Antworten
+                currentQuestions = [...wrongAnswers];
+                document.getElementById('quiz-mode').textContent = 'Wiederholung';
+                document.getElementById('quiz-mode').style.background = '#dc3545';
+                document.getElementById('quiz-mode').style.color = 'white';
+            } else {
+                // Normaler Modus: 20 ungelernte Wörter
+                const count = Math.min(20, unlearnedVocab.length);
+                currentQuestions = unlearnedVocab.slice(0, count);
+                document.getElementById('quiz-mode').textContent = 'Hauptquiz';
+                document.getElementById('quiz-mode').style.background = '#ffc107';
+                document.getElementById('quiz-mode').style.color = '#333';
+            }
+            
+            document.getElementById('quiz-box').style.display = 'block';
+            document.getElementById('result-box').style.display = 'none';
+            
             showQuestion();
-        }
-
-        // Zufällige Fragen auswählen
-        function getRandomQuestions(count) {
-            const shuffled = [...allVocab].sort(() => Math.random() - 0.5);
-            return shuffled.slice(0, count);
         }
 
         // Frage anzeigen
@@ -459,12 +593,38 @@
             const allBtns = document.querySelectorAll('.option-btn');
             allBtns.forEach(b => b.disabled = true);
             
+            const currentWord = currentQuestions[currentQuestionIndex];
+            
             if (selected === correct) {
                 btn.classList.add('correct');
                 score++;
+                
+                // Im Hauptquiz: Als gelernt markieren
+                if (!isReviewMode) {
+                    if (!learnedVocab.some(v => v.jp === currentWord.jp)) {
+                        learnedVocab.push(currentWord);
+                        unlearnedVocab = unlearnedVocab.filter(v => v.jp !== currentWord.jp);
+                        saveProgress();
+                        updateStats();
+                    }
+                }
             } else {
                 btn.classList.add('wrong');
-                wrongAnswers.push(currentQuestions[currentQuestionIndex]);
+                
+                // Falsche Antwort speichern
+                if (!wrongAnswers.some(v => v.jp === currentWord.jp)) {
+                    wrongAnswers.push(currentWord);
+                }
+                
+                // Im Hauptquiz: Zurück zu ungelernt
+                if (!isReviewMode) {
+                    learnedVocab = learnedVocab.filter(v => v.jp !== currentWord.jp);
+                    if (!unlearnedVocab.some(v => v.jp === currentWord.jp)) {
+                        unlearnedVocab.push(currentWord);
+                    }
+                    saveProgress();
+                    updateStats();
+                }
                 
                 // Richtige Antwort hervorheben
                 allBtns.forEach(b => {
@@ -496,10 +656,42 @@
             document.getElementById('score').textContent = score;
             document.getElementById('total-questions').textContent = currentQuestions.length;
             
+            // Completion Status
+            const completionDiv = document.getElementById('completion-status');
+            if (unlearnedVocab.length === 0 && !isReviewMode) {
+                completionDiv.innerHTML = `
+                    <div class="completion-message">
+                        <h3>🎊 Glückwunsch!</h3>
+                        <p>Du hast alle ${allVocab.length} Vokabeln durchgearbeitet!</p>
+                    </div>
+                `;
+            } else {
+                completionDiv.innerHTML = '';
+            }
+            
+            // Buttons anpassen
+            const reviewBtn = document.getElementById('review-btn');
+            if (wrongAnswers.length > 0 && !isReviewMode) {
+                reviewBtn.style.display = 'inline-block';
+                reviewBtn.textContent = `Falsche wiederholen (${wrongAnswers.length})`;
+            } else {
+                reviewBtn.style.display = 'none';
+            }
+            
+            // Button-Text anpassen
+            const restartBtn = document.querySelector('.restart-btn');
+            if (isReviewMode) {
+                restartBtn.textContent = 'Zurück zum Hauptquiz';
+            } else if (unlearnedVocab.length === 0) {
+                restartBtn.textContent = 'Alles nochmal von vorne';
+            } else {
+                restartBtn.textContent = 'Nächste Runde';
+            }
+            
             // Falsche Antworten anzeigen
+            const wrongContainer = document.getElementById('wrong-answers');
             if (wrongAnswers.length > 0) {
-                const wrongContainer = document.getElementById('wrong-answers');
-                wrongContainer.innerHTML = '<h3>Falsche Antworten zum Wiederholen:</h3>';
+                wrongContainer.innerHTML = '<h3>Falsche Antworten:</h3>';
                 
                 wrongAnswers.forEach(item => {
                     const div = document.createElement('div');
@@ -510,11 +702,32 @@
                     `;
                     wrongContainer.appendChild(div);
                 });
+            } else {
+                wrongContainer.innerHTML = '';
             }
         }
 
-        // Quiz starten
-        initQuiz();
+        // Neue Runde starten
+        function startNewRound() {
+            if (isReviewMode || unlearnedVocab.length === 0) {
+                // Progress zurücksetzen wenn Review-Modus oder alles gelernt
+                unlearnedVocab = [...allVocab];
+                learnedVocab = [];
+                saveProgress();
+                updateStats();
+            }
+            wrongAnswers = [];
+            initQuiz(false);
+        }
+
+        // Review-Modus starten
+        function startReview() {
+            initQuiz(true);
+        }
+
+        // Beim Laden initialisieren
+        loadProgress();
+        initQuiz(false);
     </script>
 </body>
 </html>
